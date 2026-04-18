@@ -3,12 +3,25 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+# Page config
 st.set_page_config(page_title="Poll Visualizer", layout="wide")
 
-st.title("📊 Advanced Poll Results Visualizer")
+# Style
+sns.set_style("whitegrid")
 
-# Load Data
-df = pd.read_csv("data/poll_data.csv")
+# Title
+st.title("📊 Poll Results Visualizer")
+st.markdown("Analyze survey data with interactive insights and visualizations")
+
+# -----------------------------
+# 📂 FILE UPLOAD
+# -----------------------------
+uploaded_file = st.file_uploader("Upload your poll data (CSV)", type=["csv"])
+
+if uploaded_file is not None:
+    df = pd.read_csv(uploaded_file)
+else:
+    df = pd.read_csv("data/poll_data.csv")
 
 # -----------------------------
 # 🔍 SIDEBAR FILTERS
@@ -27,11 +40,28 @@ ages = st.sidebar.multiselect(
     default=df["age_group"].unique()
 )
 
-# Apply Filters
+# Apply filters
 filtered_df = df[
     (df["region"].isin(regions)) &
     (df["age_group"].isin(ages))
 ]
+
+# -----------------------------
+# 📊 METRICS (NEW)
+# -----------------------------
+vote_counts = filtered_df["selected_option"].value_counts()
+percentages = (vote_counts / len(filtered_df)) * 100 if len(filtered_df) > 0 else 0
+
+col1, col2, col3 = st.columns(3)
+
+col1.metric("Total Responses", len(filtered_df))
+
+if len(filtered_df) > 0:
+    col2.metric("Top Option", vote_counts.idxmax())
+    col3.metric("Top %", f"{percentages.max():.2f}%")
+else:
+    col2.metric("Top Option", "N/A")
+    col3.metric("Top %", "N/A")
 
 # -----------------------------
 # 📊 DATA PREVIEW
@@ -40,17 +70,16 @@ st.subheader("Filtered Data Preview")
 st.dataframe(filtered_df.head())
 
 # -----------------------------
-# 📊 VOTE SUMMARY
+# 📊 CHARTS
 # -----------------------------
-vote_counts = filtered_df["selected_option"].value_counts()
-percentages = (vote_counts / len(filtered_df)) * 100
-
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Bar Chart")
     fig1, ax1 = plt.subplots()
     sns.barplot(x=vote_counts.index, y=vote_counts.values, ax=ax1)
+    ax1.set_xlabel("Options")
+    ax1.set_ylabel("Votes")
     st.pyplot(fig1)
 
 with col2:
@@ -85,7 +114,7 @@ trend = trend.fillna(0)
 st.line_chart(trend)
 
 # -----------------------------
-# 🧠 SMART INSIGHTS
+# 🧠 INSIGHTS
 # -----------------------------
 st.subheader("Insights")
 
@@ -99,6 +128,18 @@ if len(filtered_df) > 0:
         st.info("📢 Strong majority preference detected.")
     else:
         st.warning("⚖️ No clear majority — competition is close.")
-
 else:
     st.error("No data available for selected filters.")
+
+# -----------------------------
+# ⬇ DOWNLOAD BUTTON
+# -----------------------------
+st.subheader("Download Results")
+
+if len(filtered_df) > 0:
+    st.download_button(
+        label="Download Summary CSV",
+        data=vote_counts.to_csv(),
+        file_name="poll_summary.csv",
+        mime="text/csv"
+    )
